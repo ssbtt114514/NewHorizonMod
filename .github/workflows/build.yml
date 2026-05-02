@@ -1,0 +1,29 @@
+name: Build Mod
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'temurin'
+          
+      # 清理并构建，生成电脑和手机通用的jar包
+      - name: Build with Gradle
+        run: |
+          chmod +x gradlew
+          ./gradlew clean
+          ./gradlew deploy
+          
+      # 上传最终生成的模组文件
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NewHorizonMod
+          path: build/libs/*.jar
