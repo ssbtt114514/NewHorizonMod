@@ -1,3 +1,4 @@
+这是一个每小时真的同步上游并构建的仓库
 ![Logo](github-pictures/logo.png)![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Yuria-Shikibe/NewHorizonMod/total?style=for-the-badge)
 ![GitHub Release](https://img.shields.io/github/v/release/Yuria-Shikibe/NewHorizonMod?include_prereleases&sort=date&style=for-the-badge)
 ![GitHub Repo stars](https://img.shields.io/github/stars/Yuria-Shikibe/NewHorizonMod?style=for-the-badge)
