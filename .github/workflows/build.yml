@@ -1,29 +1,175 @@
-name: Build Mod
+name: Sync Upstream, Build & Release
 
-on: workflow_dispatch
+on:
+  schedule:
+    # 每小时检查一次上游更新
+    - cron: '0 * * * *'
+  workflow_dispatch:  # 保留手动触发
 
 jobs:
-  build:
+  sync-build-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
     steps:
+      # 1. 检出你的仓库，获取完整历史
       - uses: actions/checkout@v4
-      
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. 添加上游仓库并获取最新代码
+      - name: Add Upstream Remote
+        run: |
+          git remote add upstream https://github.com/Yuria-Shikibe/NewHorizonMod.git
+          git fetch upstream
+
+      # 3. 检查上游是否有更新
+      - name: Check Upstream Changes
+        id: check
+        run: |
+          UPSTREAM_SHA=$(git rev-parse upstream/main)
+          LOCAL_SHA=$(git rev-parse HEAD)
+          
+          echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
+          echo "local_sha=$LOCAL_SHA" >> $GITHUB_OUTPUT
+          
+          if [ "$UPSTREAM_SHA" = "$LOCAL_SHA" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "✅ 已是最新，无需同步"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "🔄 发现上游更新，准备同步"
+          fi
+
+      # 4. 合并上游更改并获取变更信息
+      - name: Merge Upstream & Get Changes
+        if: steps.check.outputs.has_changes == 'true'
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 合并上游代码
+          git merge upstream/main --no-edit
+          
+          # 获取变更文件列表
+          CHANGED_FILES=$(git diff --name-only ${{ steps.check.outputs.local_sha }} ${{ steps.check.outputs.upstream_sha }})
+          
+          # 统计各类文件
+          JAVA_COUNT=$(echo "$CHANGED_FILES" | grep -c '\.java$' || echo "0")
+          HJSON_COUNT=$(echo "$CHANGED_FILES" | grep -c '\.hjson$' || echo "0")
+          JSON_COUNT=$(echo "$CHANGED_FILES" | grep -c '\.json$' || echo "0")
+          PNG_COUNT=$(echo "$CHANGED_FILES" | grep -c '\.png$' || echo "0")
+          TOTAL_COUNT=$(echo "$CHANGED_FILES" | wc -l)
+          
+          # 获取提交日志
+          COMMITS=$(git log --oneline ${{ steps.check.outputs.local_sha }}..${{ steps.check.outputs.upstream_sha }})
+          
+          # 输出到 GITHUB_OUTPUT
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "java_count=$JAVA_COUNT" >> $GITHUB_OUTPUT
+          echo "hjson_count=$HJSON_COUNT" >> $GITHUB_OUTPUT
+          echo "json_count=$JSON_COUNT" >> $GITHUB_OUTPUT
+          echo "png_count=$PNG_COUNT" >> $GITHUB_OUTPUT
+          echo "total_count=$TOTAL_COUNT" >> $GITHUB_OUTPUT
+
+      # 5. 推送到你的仓库（保留上游更改）
+      - name: Push to Fork
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git push origin main
+
+      # 6. 设置 Java 17
       - name: Set up JDK 17
+        if: steps.check.outputs.has_changes == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: 'temurin'
-          
-      # 清理并构建，生成电脑和手机通用的jar包
+
+      # 7. 构建模组（电脑+手机通用）
       - name: Build with Gradle
+        if: steps.check.outputs.has_changes == 'true'
         run: |
           chmod +x gradlew
-          ./gradlew clean
-          ./gradlew deploy
-          
-      # 上传最终生成的模组文件
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+          ./gradlew clean deploy
+
+      # 8. 生成版本号 (年/月/日/小时)
+      - name: Generate Version
+        if: steps.check.outputs.has_changes == 'true'
+        id: version
+        run: |
+          VERSION=$(date +'%Y/%m/%d/%H')
+          TAG="v$(date +'%Y%m%d%H')"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "build_time=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+
+      # 9. 创建 GitHub Release
+      - name: Create Release
+        if: steps.check.outputs.has_changes == 'true'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: NewHorizonMod
-          path: build/libs/*.jar
+          tag_name: ${{ steps.version.outputs.tag }}
+          release_name: ${{ steps.version.outputs.version }}
+          body: |
+            ## 🔄 自动同步构建发布
+            
+            **构建时间**: ${{ steps.version.outputs.build_time }}
+            **上游提交**: `${{ steps.check.outputs.upstream_sha }}`
+            
+            ### 📊 变更统计
+            | 类型 | 数量 |
+            |------|------|
+            | Java 源码 | ${{ steps.merge.outputs.java_count }} |
+            | HJSON 配置 | ${{ steps.merge.outputs.hjson_count }} |
+            | JSON 配置 | ${{ steps.merge.outputs.json_count }} |
+            | 贴图资源 | ${{ steps.merge.outputs.png_count }} |
+            | **总计** | **${{ steps.merge.outputs.total_count }}** |
+            
+            ### 📁 变更文件列表
+            <details>
+            <summary>展开查看 (${{ steps.merge.outputs.total_count }} 个文件)</summary>
+            
+            ```
+            ${{ steps.merge.outputs.changed_files }}
+            ```
+            
+            </details>
+            
+            ### 📝 上游提交记录
+            <details>
+            <summary>展开查看</summary>
+            
+            ```
+            ${{ steps.merge.outputs.commits }}
+            ```
+            
+            </details>
+            
+            ---
+            *此 Release 由 GitHub Actions 自动生成*
+
+      # 10. 上传构建产物到 Release
+      - name: Upload Release Asset
+        if: steps.check.outputs.has_changes == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/libs/NewHorizonMod.jar
+          asset_name: NewHorizonMod-${{ steps.version.outputs.tag }}.jar
+          asset_content_type: application/java-archive
