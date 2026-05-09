@@ -27,7 +27,7 @@ import static newhorizon.util.func.NHFunc.rand;
 
 public class ProductionBlock {
     public static Block
-            sandCracker,
+            sandCracker,resourceConvertor,
             //tungstenReconstructor, titaniumReconstructor,
             //liquidConvertor, xenExtractor, xenIterator,
             scanCollector,
@@ -73,6 +73,24 @@ public class ProductionBlock {
             }).layer(Layer.blockOver + 1);
 
             consumePower(5f);
+        }};
+        resourceConvertor = new RecipeGenericCrafter("resource-convertor") {{
+            requirements(Category.production, ItemStack.with(
+                    NHItems.silicon, 40,
+                    NHItems.graphite, 40
+            ));
+            size = 2;
+            craftTime = 1f;
+            itemCapacity = 120;
+            liquidCapacity = 120f;
+
+            rotate = false;
+
+            craftEffect = updateEffect = NHFx.square(NHColor.thurmixRed, 10, 6, 16, 3);
+
+            consumePower(300f / 60f);
+
+            drawer = new DrawMulti(new DrawDefault());
         }};
         /*
         tungstenReconstructor = new RecipeGenericCrafter("tungsten-reconstructor") {{
@@ -193,7 +211,7 @@ public class ProductionBlock {
             hasPower = true;
 
             drillTime = 240;
-            itemCapacity = 20;
+            itemCapacity = 30;
             warmupSpeed = 0.035f;
 
             drillEffect = Fx.mineHuge;
@@ -232,13 +250,15 @@ public class ProductionBlock {
             requirements(Category.production, with(NHItems.graphite, 114));
 
             size = 4;
-            tier = 3;
+            tier = 4;
 
             drawRim = false;
             hasPower = true;
 
-            drillTime = 240;
-            itemCapacity = 20;
+            maxModules = 2;
+
+            drillTime = 200f;
+            itemCapacity = 40;
             warmupSpeed = 0.035f;
 
             drillEffect = Fx.mineHuge;
