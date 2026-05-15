@@ -3,17 +3,12 @@ package newhorizon.content.blocks;
 import arc.Core;
 import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
-import arc.graphics.g2d.Lines;
 import arc.graphics.g2d.TextureRegion;
 import arc.math.Mathf;
 import arc.util.io.Reads;
 import arc.util.io.Writes;
 import mindustry.content.Fx;
-import mindustry.content.Items;
-import mindustry.content.Liquids;
-import mindustry.entities.Effect;
 import mindustry.gen.Sounds;
-import mindustry.graphics.Layer;
 import mindustry.graphics.Pal;
 import mindustry.type.Category;
 import mindustry.type.ItemStack;
@@ -21,24 +16,18 @@ import mindustry.type.LiquidStack;
 import mindustry.world.Block;
 import mindustry.world.blocks.power.Battery;
 import mindustry.world.blocks.power.ConsumeGenerator;
+import mindustry.world.blocks.power.NuclearReactor;
 import mindustry.world.blocks.power.SolarGenerator;
 import mindustry.world.consumers.ConsumeItemExplode;
 import mindustry.world.consumers.ConsumeItemFlammable;
 import mindustry.world.draw.*;
 import mindustry.world.meta.BuildVisibility;
 import mindustry.world.meta.Stat;
-import mindustry.world.meta.StatValues;
 import newhorizon.content.*;
 import newhorizon.expand.block.drawer.*;
 import newhorizon.expand.block.power.GravityWell;
 import newhorizon.expand.block.power.MultiBlockConsumeGenerator;
-import newhorizon.expand.block.production.factory.RecipeGenericCrafter;
-import newhorizon.expand.block.special.HyperGenerator;
-import newhorizon.expand.draw.DrawLiquidAnimatedOffset;
-import newhorizon.expand.draw.DrawLiquidSmelt;
-import newhorizon.expand.draw.DrawPistonsOffset;
-import newhorizon.expand.draw.DrawRegionOffset;
-import newhorizon.util.graphic.EffectWrapper;
+import newhorizon.expand.block.special.HyperReactor;
 
 import static mindustry.Vars.tilesize;
 import static mindustry.type.ItemStack.with;
@@ -48,15 +37,14 @@ public class PowerBlock {
             //serpulo generators
             photothermalGenerator,
             photonPanel, nitrogenDissociator,
-            hydrazineGenerator, neutralizationGenerator,
-            crystalDecompositionThermalGenerator, hydroFuelCell, zetaGenerator, anodeFusionReactor, cathodeFusionReactor, thermoReactor,
+            hydrazineGenerator, neutralizationGenerator, fissionReactor, fusionReactor, hyperReactor,
+            crystalDecompositionThermalGenerator, hydroFuelCell, zetaGenerator, anodeFusionReactor, cathodeFusionReactor,
             armorBattery, armorBatteryLarge, armorBatteryHuge,
-            gravityTrapMidantha, gravityTrapSerpulo, gravityTrapErekir, gravityTrapSmall, gravityTrap,
-            fusionCollapserGenerator, hyperGenerator;
+            gravityTrapSmall, gravityTrap;
 
     public static void load() {
         photothermalGenerator = new ConsumeGenerator("photothermal-generator") {{
-            requirements(Category.power, with(Items.copper, 35, Items.lead, 25));
+            requirements(Category.power, with(NHItems.copper, 35, NHItems.lead, 25));
             powerProduction = 0.8f;
             itemDuration = 120f;
 
@@ -67,7 +55,7 @@ public class PowerBlock {
             consume(new ConsumeItemFlammable());
             consume(new ConsumeItemExplode());
 
-            itemDurationMultipliers.put(Items.pyratite, 3f);
+            itemDurationMultipliers.put(NHItems.pyratite, 3f);
 
             drawer = new DrawMulti(new DrawDefault(), new DrawWarmupRegion());
 
@@ -160,6 +148,7 @@ public class PowerBlock {
                 stats.add(Stat.output, NHStatValues.itemsWithSolarMultiplier(produceTime, ItemStack.with(NHItems.hardLight, 1)));
             }
         };
+
         hydrazineGenerator = new ConsumeGenerator("hydrazine-generator") {{
             requirements(Category.power, ItemStack.with(
                     NHItems.titanium, 30,
@@ -168,6 +157,7 @@ public class PowerBlock {
             ));
 
             size = 3;
+            hasLiquids = true;
             scaledHealth = 100f;
 
             consumeLiquids(LiquidStack.with(NHLiquids.hydrazine, 9 / 60f));
@@ -175,12 +165,18 @@ public class PowerBlock {
 
             drawer = new DrawMulti(
                     new DrawBaseRegion("-3x3"),
+                    new DrawGlowRegion(){{
+                        alpha = 0.6f;
+                        glowScale = 5f;
+                        color = Color.valueOf("f3b9ca");
+                    }},
                     new DrawPlasma(),
-                    new DrawRegion("-top")
-            );
+                    new DrawLiquidRegion(NHLiquids.hydrazine),
+                    new DrawDefault()
 
-            consumeEffect = generateEffect = NHFx.square(Pal.power, 60, 6, 16, 3);
+            );
         }};
+
         neutralizationGenerator = new MultiBlockConsumeGenerator("neutralization-generator") {{
             requirements(Category.power, ItemStack.with(
                     NHItems.titanium, 30,
@@ -232,8 +228,93 @@ public class PowerBlock {
             enableRotate();
         }};
 
+        fissionReactor = new NuclearReactor("fission-reactor"){{
+            requirements(Category.power, with(
+                    NHItems.titanium, 200,
+                    NHItems.juniorProcessor, 100,
+                    NHItems.carbide, 50,
+                    NHItems.metalOxhydrigen, 50,
+                    NHItems.fissileMatter, 25
+
+            ));
+            size = 3;
+            health = 1200;
+            itemDuration = 300f;
+            heating = 0.02f;
+            heatOutput = 30f;
+            fuelItem = NHItems.fissileMatter;
+
+            consumeItem(NHItems.fissileMatter, 1);
+            consumeLiquid(NHLiquids.cryofluid, (float) (3.5 / 60f)).update(false);
+            powerProduction = 1800f / 60f;
+
+            drawer = new DrawMulti(
+                    new DrawBaseRegion("-3x3"),
+                    new DrawLiquidTile(NHLiquids.cryofluid),
+                    new DrawDefault()
+            );
+
+            ambientSound = Sounds.loopThoriumReactor;
+            ambientSoundVolume = 0.11f;
+        }};
+
+
+        fusionReactor = new MultiBlockConsumeGenerator("fusion-reactor") {{
+            requirements(Category.power, ItemStack.with(
+                    NHItems.metalOxhydrigen, 200,
+                    NHItems.carbide, 200,
+                    NHItems.multipleSteel, 400,
+                    NHItems.seniorProcessor, 200
+            ));
+            addLink(-3, 2, 1, -3, 1, 1, -3, 0, 1, -3, -1, 1, -3, -2, 1, -2, 3, 1, -1, 3, 1, 0, 3, 1, 1, 3, 1, 2, 3, 1, 3, 2, 1, 3, 1, 1, 3, 0, 1, 3, -1, 1, 3, -2, 1, -2, -3, 1, -1, -3, 1, 0, -3, 1, 1, -3, 1, 2, -3, 1);
+
+            size = 5;
+            itemCapacity = 60;
+            liquidCapacity = 120;
+            itemDuration = 240f;
+
+            drawer = new DrawMulti(
+                    new DrawRegion("-bottom"),
+                    new DrawLiquidTile(NHLiquids.irdryonFluid),
+                    new DrawDefault()
+            );
+
+            consumeItems(ItemStack.with( NHItems.fusionEnergy, 12));
+            consumeLiquids(LiquidStack.with(NHLiquids.irdryonFluid, 12 / 60f));
+            powerProduction = 22000f / 60f;
+        }};
+
+
+        hyperReactor = new HyperReactor("hyper-reactor") {{
+            requirements(Category.power, BuildVisibility.shown, with(
+                    NHItems.nodexPlate, 800,
+                    NHItems.setonAlloy, 600,
+                    NHItems.irayrondPanel, 400,
+                    NHItems.presstanium, 1500,
+                    NHItems.surgeAlloy, 250
+            ));
+
+            size = 8;
+            health = 40000;
+            armor = 50f;
+            powerProduction = 4000f;
+            updateLightning = updateLightningRand = 3;
+            effectColor = NHColor.thermoPst;
+            itemCapacity = 40;
+            itemDuration = 180f;
+            //ambientSound = Sounds.pulse;
+            ambientSoundVolume = 0.1F;
+
+            consumePower(100.0F);
+//            consumeItems(ItemStack.with(NHItems.thermoCoreNegative, 6, NHItems.phaseFabric, 6)).optional(true, true);
+            consumeItems(ItemStack.with(NHItems.thermoCorePositive, 4, NHItems.thermoCoreNegative, 4, NHItems.metalOxhydrigen, 3, NHItems.phaseFabric, 3));
+            consumeLiquids(LiquidStack.with(NHLiquids.neutron, 6/60f, NHLiquids.proton, 6/60f));
+//            consumeLiquids(new LiquidStack(NHLiquids.zetaFluidPositive, 8/60f)).optional(true, true);
+
+        }};
+
         gravityTrapSmall = new GravityWell("gravity-trap-small") {{
-            requirements(Category.power, BuildVisibility.shown, with(Items.titanium, 10, Items.tungsten, 8));
+            requirements(Category.power, BuildVisibility.shown, with(NHItems.titanium, 10, NHItems.tungsten, 8));
 
             size = 2;
             health = 640;
@@ -281,58 +362,6 @@ public class PowerBlock {
             health = 5000;
             armor = 50;
             consumePowerBuffered(1000000f);
-        }};
-
-        fusionCollapserGenerator = new MultiBlockConsumeGenerator("fusion-collapser-generator") {{
-            requirements(Category.power, ItemStack.with(
-                    NHItems.metalOxhydrigen, 200,
-                    NHItems.carbide, 200,
-                    NHItems.multipleSteel, 400,
-                    NHItems.seniorProcessor, 200
-            ));
-            addLink(-3, 2, 1, -3, 1, 1, -3, 0, 1, -3, -1, 1, -3, -2, 1, -2, 3, 1, -1, 3, 1, 0, 3, 1, 1, 3, 1, 2, 3, 1, 3, 2, 1, 3, 1, 1, 3, 0, 1, 3, -1, 1, 3, -2, 1, -2, -3, 1, -1, -3, 1, 0, -3, 1, 1, -3, 1, 2, -3, 1);
-
-            size = 5;
-            itemCapacity = 30;
-            liquidCapacity = 120;
-
-            drawer = new DrawMulti(
-                    new DrawRegion("-bottom"),
-                    new DrawRegion()
-            );
-
-            consumeItems(ItemStack.with(NHItems.fusionEnergy, 4));
-            consumeLiquids(LiquidStack.with(NHLiquids.xenFluid, 24 / 60f));
-            powerProduction = 18000f / 60f;
-        }};
-
-
-        hyperGenerator = new HyperGenerator("hyper-generator") {{
-            requirements(Category.power, BuildVisibility.shown, with(
-                    NHItems.nodexPlate, 800,
-                    NHItems.setonAlloy, 600,
-                    NHItems.irayrondPanel, 400,
-                    NHItems.presstanium, 1500,
-                    Items.surgeAlloy, 250)
-            );
-
-            size = 8;
-            health = 40000;
-            armor = 50f;
-            powerProduction = 4000f;
-            updateLightning = updateLightningRand = 3;
-            effectColor = NHColor.thermoPst;
-            itemCapacity = 40;
-            itemDuration = 180f;
-            //ambientSound = Sounds.pulse;
-            ambientSoundVolume = 0.1F;
-
-            consumePower(100.0F);
-//            consumeItems(ItemStack.with(NHItems.thermoCoreNegative, 6, Items.phaseFabric, 6)).optional(true, true);
-            consumeItems(ItemStack.with(NHItems.thermoCorePositive, 4, NHItems.thermoCoreNegative, 4, NHItems.metalOxhydrigen, 3, Items.phaseFabric, 3));
-            consumeLiquids(LiquidStack.with(NHLiquids.neutron, 6/60f, NHLiquids.proton, 6/60f));
-//            consumeLiquids(new LiquidStack(NHLiquids.zetaFluidPositive, 8/60f)).optional(true, true);
-
         }};
 
         /*
