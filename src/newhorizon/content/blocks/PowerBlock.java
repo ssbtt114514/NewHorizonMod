@@ -14,17 +14,16 @@ import mindustry.type.Category;
 import mindustry.type.ItemStack;
 import mindustry.type.LiquidStack;
 import mindustry.world.Block;
-import mindustry.world.blocks.power.Battery;
-import mindustry.world.blocks.power.ConsumeGenerator;
-import mindustry.world.blocks.power.NuclearReactor;
-import mindustry.world.blocks.power.SolarGenerator;
+import mindustry.world.blocks.power.*;
 import mindustry.world.consumers.ConsumeItemExplode;
 import mindustry.world.consumers.ConsumeItemFlammable;
 import mindustry.world.draw.*;
+import mindustry.world.meta.Attribute;
 import mindustry.world.meta.BuildVisibility;
 import mindustry.world.meta.Stat;
 import newhorizon.content.*;
-import newhorizon.expand.block.drawer.*;
+import newhorizon.expand.block.drawer.DrawBaseRegion;
+import newhorizon.expand.block.drawer.DrawRotation;
 import newhorizon.expand.block.power.GravityWell;
 import newhorizon.expand.block.power.MultiBlockConsumeGenerator;
 import newhorizon.expand.block.special.HyperReactor;
@@ -34,58 +33,115 @@ import static mindustry.type.ItemStack.with;
 
 public class PowerBlock {
     public static Block
-            //serpulo generators
-            photothermalGenerator,
-            photonPanel, nitrogenDissociator,
-            hydrazineGenerator, neutralizationGenerator, fissionReactor, fusionReactor, hyperReactor,
-            crystalDecompositionThermalGenerator, hydroFuelCell, zetaGenerator, anodeFusionReactor, cathodeFusionReactor,
+            fluxNodeMK1, fluxNodeMK2, fluxNodeLargeMK1, fluxNodeLargeMK2,
+    //serpulo generators
+    photothermalGenerator, test,
+    //erekir generators
+    vectorCondenser,
+            photonPanel,
+            neutralizationGenerator, hydrazineGenerator, fissionReactor, fusionReactor, hyperReactor,
             armorBattery, armorBatteryLarge, armorBatteryHuge,
             gravityTrapSmall, gravityTrap;
 
     public static void load() {
-        photothermalGenerator = new ConsumeGenerator("photothermal-generator") {{
-            requirements(Category.power, with(NHItems.copper, 35, NHItems.lead, 25));
-            powerProduction = 0.8f;
-            itemDuration = 120f;
 
-            ambientSound = Sounds.loopSmelter;
-            ambientSoundVolume = 0.03f;
-            generateEffect = Fx.generatespark;
+        fluxNodeMK1 = new PowerNode("flux-node-mk1") {{
+            requirements(Category.power, with(
+                    NHItems.hardLight, 6,
+                    NHItems.silicar, 6
+            ));
 
-            consume(new ConsumeItemFlammable());
-            consume(new ConsumeItemExplode());
+            maxNodes = 12;
+            laserRange = 8;
+            underBullets = true;
+            crushFragile = true;
+            drawTeamOverlay = false;
+        }};
 
-            itemDurationMultipliers.put(NHItems.pyratite, 3f);
+        fluxNodeMK2 = new PowerNode("flux-node-mk2") {{
+            requirements(Category.power, with(
+                    NHItems.hardLight, 6,
+                    NHItems.silicar, 6
+            ));
 
-            drawer = new DrawMulti(new DrawDefault(), new DrawWarmupRegion());
+            maxNodes = 16;
+            laserRange = 12;
+            underBullets = true;
+            drawTeamOverlay = false;
+        }};
 
-            buildType = () -> new ConsumeGeneratorBuild(){
-                public float produceTime = 0f;
-                @Override
-                public void updateTile() {
-                    super.updateTile();
+        fluxNodeLargeMK1 = new PowerNode("flux-node-large-mk1") {{
+            requirements(Category.power, with(
+                    NHItems.titanium, 5,
+                    NHItems.lead, 10,
+                    NHItems.silicon, 3
+            ));
 
-                    produceTime += warmup * edelta() * efficiencyMultiplier;
-                    if (produceTime > hlTime) {
-                        if (core() != null) core().handleItem(this, NHItems.hardLight);
-                        produceTime %= hlTime;
-                    }
-                }
+            size = 2;
+            maxNodes = 18;
+            laserRange = 18f;
+            drawTeamOverlay = false;
+        }};
 
-                @Override
-                public void write(Writes write) {
-                    super.write(write);
-                    write.f(produceTime);
-                }
+        fluxNodeLargeMK2 = new PowerNode("flux-node-large-mk2") {{
+            requirements(Category.power, with(
+                    NHItems.titanium, 5,
+                    NHItems.lead, 10,
+                    NHItems.silicon, 3
+            ));
 
-                @Override
-                public void read(Reads read, byte revision) {
-                    super.read(read, revision);
-                    produceTime = read.f();
-                }
-            };
-        }
+            size = 2;
+            maxNodes = 24;
+            laserRange = 24f;
+            drawTeamOverlay = false;
+        }};
+
+        photothermalGenerator = new ConsumeGenerator("photothermal-generator") {
             final float hlTime = 120f;
+
+            {
+                requirements(Category.power, with(NHItems.copper, 35, NHItems.lead, 25));
+                powerProduction = 0.8f;
+                itemDuration = 120f;
+
+                ambientSound = Sounds.loopSmelter;
+                ambientSoundVolume = 0.03f;
+                generateEffect = Fx.generatespark;
+
+                consume(new ConsumeItemFlammable());
+                consume(new ConsumeItemExplode());
+
+                itemDurationMultipliers.put(NHItems.pyratite, 3f);
+
+                drawer = new DrawMulti(new DrawDefault(), new DrawWarmupRegion());
+
+                buildType = () -> new ConsumeGeneratorBuild() {
+                    public float produceTime = 0f;
+
+                    @Override
+                    public void updateTile() {
+                        super.updateTile();
+
+                        produceTime += warmup * edelta() * efficiencyMultiplier;
+                        if (produceTime > hlTime) {
+                            if (core() != null) core().handleItem(this, NHItems.hardLight);
+                            produceTime %= hlTime;
+                        }
+                    }
+
+                    @Override
+                    public void write(Writes write) {
+                        super.write(write);
+                        write.f(produceTime);
+                    }
+
+                    @Override
+                    public void read(Reads read, byte revision) {
+                        super.read(read, revision);
+                        produceTime = read.f();
+                    }
+                };
+            }
 
             @Override
             public void setStats() {
@@ -93,40 +149,168 @@ public class PowerBlock {
                 stats.add(Stat.output, NHStatValues.itemsWithEfficiency(hlTime, ItemStack.with(NHItems.hardLight, 1)));
             }
         };
-        photonPanel = new SolarGenerator("photon-panel") {{
-            requirements(Category.power, with(
-                    NHItems.silicar, 20
-            ));
-            size = 3;
-            powerProduction = 0.5f;
 
-            buildType = () -> new SolarGeneratorBuild(){
-                boolean justCreated = true;
-                @Override
-                public void draw() {
-                    Draw.rect(baseRegions[Mathf.randomSeed(id, 0, baseRegions.length - 1)], x, y);
-                    Draw.rect(reflectRegions[Mathf.randomSeed(id + 123, 0, baseRegions.length - 1)], x, y);
-                    Draw.rect(topRegion, x, y);
-                }
+        test = new ThermalGenerator("test") {
+            final float hlTime = 120f;
 
-                @Override
-                public void updateTile() {
-                    super.updateTile();
-                    if (core() != null && timer(produceTimer, produceTime / productionEfficiency)){
-                        if (!justCreated) {
-                            core().handleItem(this, NHItems.hardLight);
-                        }else {
-                            justCreated = false;
+            {
+                requirements(Category.power, with(
+                        NHItems.copper, 40,
+                        NHItems.graphite, 35,
+                        NHItems.lead, 50,
+                        NHItems.silicon, 35,
+                        NHItems.metaglass, 40
+                ));
+
+                size = 3;
+                floating = true;
+
+                powerProduction = 172f / 60f;
+
+                generateEffect = Fx.redgeneratespark;
+                effectChance = 0.011f;
+
+                ambientSound = Sounds.loopHum;
+                ambientSoundVolume = 0.06f;
+
+                buildType = () -> new ThermalGeneratorBuild() {
+                    public float produceTime = 0f;
+
+                    @Override
+                    public void updateTile() {
+                        super.updateTile();
+
+                        produceTime += delta();
+                        if (produceTime > hlTime) {
+                            if (core() != null) core().handleItem(this, NHItems.hardLight);
+                            produceTime %= hlTime;
                         }
                     }
-                }
-            };
-        }
+
+                    @Override
+                    public void write(Writes write) {
+                        super.write(write);
+                        write.f(produceTime);
+                    }
+
+                    @Override
+                    public void read(Reads read, byte revision) {
+                        super.read(read, revision);
+                        produceTime = read.f();
+                    }
+                };
+            }
+
+            @Override
+            public void setStats() {
+                super.setStats();
+                stats.add(Stat.output, NHStatValues.itemsWithEfficiency(hlTime, ItemStack.with(NHItems.hardLight, 1)));
+            }
+        };
+
+        vectorCondenser = new ThermalGenerator("vector-condenser") {
+            final float hlTime = 120f;
+
+            {
+                requirements(Category.power, with(
+                        NHItems.beryllium, 60,
+                        NHItems.graphite, 40
+                ));
+
+                size = 3;
+                displayEfficiency = false;
+                fogRadius = 3;
+                liquidCapacity = 30f;
+
+                attribute = Attribute.steam;
+                displayEfficiencyScale = 1f / 9f;
+                minEfficiency = 9f - 0.0001f;
+                powerProduction = 7.5f / 9f;
+
+                drawer = new DrawMulti(
+                        new DrawDefault(),
+                        new DrawBlurSpin("-rotator", 0.8f * 9f) {{
+                            blurThresh = 0.01f;
+                        }}
+                );
+
+                generateEffect = Fx.turbinegenerate;
+                effectChance = 0.04f;
+
+                ambientSound = Sounds.loopHum;
+                ambientSoundVolume = 0.06f;
+
+                buildType = () -> new ThermalGeneratorBuild() {
+                    public float produceTime = 0f;
+
+                    @Override
+                    public void updateTile() {
+                        super.updateTile();
+
+                        produceTime += delta();
+                        if (produceTime > hlTime) {
+                            if (core() != null) core().handleItem(this, NHItems.hardLight);
+                            produceTime %= hlTime;
+                        }
+                    }
+
+                    @Override
+                    public void write(Writes write) {
+                        super.write(write);
+                        write.f(produceTime);
+                    }
+
+                    @Override
+                    public void read(Reads read, byte revision) {
+                        super.read(read, revision);
+                        produceTime = read.f();
+                    }
+                };
+            }
+
+            @Override
+            public void setStats() {
+                super.setStats();
+                stats.add(Stat.output, NHStatValues.itemsWithEfficiency(hlTime, ItemStack.with(NHItems.hardLight, 2)));
+            }
+        };
+
+        photonPanel = new SolarGenerator("photon-panel") {
+            public final float produceTime = 300f;
+            public final int produceTimer = timers++;
             public TextureRegion topRegion;
             public TextureRegion[] baseRegions, reflectRegions;
 
-            public final float produceTime = 300f;
-            public final int produceTimer = timers++;
+            {
+                requirements(Category.power, with(
+                        NHItems.silicar, 20
+                ));
+                size = 3;
+                powerProduction = 0.5f;
+
+                buildType = () -> new SolarGeneratorBuild() {
+                    boolean justCreated = true;
+
+                    @Override
+                    public void draw() {
+                        Draw.rect(baseRegions[Mathf.randomSeed(id, 0, baseRegions.length - 1)], x, y);
+                        Draw.rect(reflectRegions[Mathf.randomSeed(id + 123, 0, baseRegions.length - 1)], x, y);
+                        Draw.rect(topRegion, x, y);
+                    }
+
+                    @Override
+                    public void updateTile() {
+                        super.updateTile();
+                        if (core() != null && timer(produceTimer, produceTime / productionEfficiency)) {
+                            if (!justCreated) {
+                                core().handleItem(this, NHItems.hardLight);
+                            } else {
+                                justCreated = false;
+                            }
+                        }
+                    }
+                };
+            }
 
             @Override
             public void load() {
@@ -149,34 +333,6 @@ public class PowerBlock {
             }
         };
 
-        hydrazineGenerator = new ConsumeGenerator("hydrazine-generator") {{
-            requirements(Category.power, ItemStack.with(
-                    NHItems.titanium, 30,
-                    NHItems.silicon, 45,
-                    NHItems.tungsten, 30
-            ));
-
-            size = 3;
-            hasLiquids = true;
-            scaledHealth = 100f;
-
-            consumeLiquids(LiquidStack.with(NHLiquids.hydrazine, 9 / 60f));
-            powerProduction = 20f;
-
-            drawer = new DrawMulti(
-                    new DrawBaseRegion("-3x3"),
-                    new DrawGlowRegion(){{
-                        alpha = 0.6f;
-                        glowScale = 5f;
-                        color = Color.valueOf("f3b9ca");
-                    }},
-                    new DrawPlasma(),
-                    new DrawLiquidRegion(NHLiquids.hydrazine),
-                    new DrawDefault()
-
-            );
-        }};
-
         neutralizationGenerator = new MultiBlockConsumeGenerator("neutralization-generator") {{
             requirements(Category.power, ItemStack.with(
                     NHItems.titanium, 30,
@@ -194,6 +350,8 @@ public class PowerBlock {
 
             size = 2;
             scaledHealth = 100f;
+            hasItems = true;
+            hasLiquids = true;
 
             consumeLiquids(LiquidStack.with(NHLiquids.ammonia, 6 / 60f));
             outputLiquid = new LiquidStack(NHLiquids.water, 12f / 60f);
@@ -228,7 +386,35 @@ public class PowerBlock {
             enableRotate();
         }};
 
-        fissionReactor = new NuclearReactor("fission-reactor"){{
+        hydrazineGenerator = new ConsumeGenerator("hydrazine-generator") {{
+            requirements(Category.power, ItemStack.with(
+                    NHItems.titanium, 30,
+                    NHItems.silicon, 45,
+                    NHItems.tungsten, 30
+            ));
+
+            size = 3;
+            hasLiquids = true;
+            scaledHealth = 100f;
+
+            consumeLiquids(LiquidStack.with(NHLiquids.hydrazine, 4 / 60f));
+            powerProduction = 20f;
+
+            drawer = new DrawMulti(
+                    new DrawBaseRegion("-3x3"),
+                    new DrawGlowRegion() {{
+                        alpha = 0.6f;
+                        glowScale = 5f;
+                        color = Color.valueOf("f3b9ca");
+                    }},
+                    new DrawPlasma(),
+                    new DrawLiquidRegion(NHLiquids.hydrazine),
+                    new DrawDefault()
+
+            );
+        }};
+
+        fissionReactor = new NuclearReactor("fission-reactor") {{
             requirements(Category.power, with(
                     NHItems.titanium, 200,
                     NHItems.juniorProcessor, 100,
@@ -269,6 +455,8 @@ public class PowerBlock {
             addLink(-3, 2, 1, -3, 1, 1, -3, 0, 1, -3, -1, 1, -3, -2, 1, -2, 3, 1, -1, 3, 1, 0, 3, 1, 1, 3, 1, 2, 3, 1, 3, 2, 1, 3, 1, 1, 3, 0, 1, 3, -1, 1, 3, -2, 1, -2, -3, 1, -1, -3, 1, 0, -3, 1, 1, -3, 1, 2, -3, 1);
 
             size = 5;
+            hasItems = true;
+            hasLiquids = true;
             itemCapacity = 60;
             liquidCapacity = 120;
             itemDuration = 240f;
@@ -279,11 +467,10 @@ public class PowerBlock {
                     new DrawDefault()
             );
 
-            consumeItems(ItemStack.with( NHItems.fusionEnergy, 12));
+            consumeItems(ItemStack.with(NHItems.fusionEnergy, 12));
             consumeLiquids(LiquidStack.with(NHLiquids.irdryonFluid, 12 / 60f));
             powerProduction = 22000f / 60f;
         }};
-
 
         hyperReactor = new HyperReactor("hyper-reactor") {{
             requirements(Category.power, BuildVisibility.shown, with(
@@ -308,7 +495,7 @@ public class PowerBlock {
             consumePower(100.0F);
 //            consumeItems(ItemStack.with(NHItems.thermoCoreNegative, 6, NHItems.phaseFabric, 6)).optional(true, true);
             consumeItems(ItemStack.with(NHItems.thermoCorePositive, 4, NHItems.thermoCoreNegative, 4, NHItems.metalOxhydrigen, 3, NHItems.phaseFabric, 3));
-            consumeLiquids(LiquidStack.with(NHLiquids.neutron, 6/60f, NHLiquids.proton, 6/60f));
+            consumeLiquids(LiquidStack.with(NHLiquids.neutron, 6 / 60f, NHLiquids.proton, 6 / 60f));
 //            consumeLiquids(new LiquidStack(NHLiquids.zetaFluidPositive, 8/60f)).optional(true, true);
 
         }};

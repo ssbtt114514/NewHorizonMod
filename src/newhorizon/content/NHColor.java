@@ -6,6 +6,7 @@ import mindustry.content.Items;
 import mindustry.graphics.Pal;
 
 public class NHColor {
+
     public static Color
             ancient = Items.surgeAlloy.color.cpy().lerp(Pal.accent, 0.115f),
             ancientLight = ancient.cpy().lerp(Color.white, 0.7f),
@@ -40,7 +41,6 @@ public class NHColor {
         Colors.put("reddust", Pal.redderDust);
         Colors.put("ammo", Pal.ammo);
     }
-
 
 }
 

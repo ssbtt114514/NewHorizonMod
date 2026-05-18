@@ -1,10 +1,12 @@
 package newhorizon.util.func;
 
 
+import static arc.math.Mathf.PI;
+
 /**
  * {@link arc.math.Mathf}
  */
-public class NHMath{
+public class NHMath {
     public static final float PI = 3.1415927f, pi = PI, halfPi = PI/2;
 
     public static final float radiansToDegrees = 180f / PI;
@@ -18,9 +20,9 @@ public class NHMath{
     private static final float sinToIndex = asinCount / 2f;
 
     //[-1, 1] - +1 -> [0, 2]
-    static{
-        for(int i = 0; i < asinCount; i++)
-            asinTable[i] = (float)(Math.asin((i + 0.5f) / asinCount * 2 - 1) + radFull);
+    static {
+        for (int i = 0; i < asinCount; i++)
+            asinTable[i] = (float) (Math.asin((i + 0.5f) / asinCount * 2 - 1) + radFull);
 
         asinTable[0] = radFull - halfPi;
         asinTable[asinTable.length - 1] = radFull + halfPi;
@@ -28,16 +30,24 @@ public class NHMath{
         asinTable[index(0.5f)] = pi + halfPi + radFull;
     }
 
-    public static int index(float sin){
-        return (int)((sin + 1) * sinToIndex) & asinMask;
+    public static int index(float sin) {
+        return (int) ((sin + 1) * sinToIndex) & asinMask;
     }
 
-    public static float acosRad(float cos){
-        return asinTable[index((float)Math.sqrt(1 - cos * cos))];
+    public static float acosRad(float cos) {
+        return asinTable[index((float) Math.sqrt(1 - cos * cos))];
     }
 
-    public static float asinDeg(float sin){
+    public static float asinDeg(float sin) {
         return asinTable[index(sin)] * radiansToDegrees;
     }
+
+
+
+
+
+
+
+
 }
 
