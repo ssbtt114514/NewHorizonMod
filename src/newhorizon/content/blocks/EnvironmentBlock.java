@@ -357,7 +357,7 @@ public class EnvironmentBlock {
         plateFloor = new PlateFloor("plate-floor") {{
             addVariant(1, 2);
             addVariant(2, 2);
-            addVariant(3, 2);
+            addVariant(3, 3);
         }};
         ((PlateFloor) plateFloor).loadBlocks();
 
@@ -380,5 +380,10 @@ public class EnvironmentBlock {
         Blocks.crystalOrbs.attributes.set(NHContent.density, 0.75f);
         Blocks.whiteTree.attributes.set(NHContent.density, 0.25f);
         Blocks.crystalBlocks.attributes.set(NHContent.density, 0.5f);
+
+        Blocks.graphiticWall.attributes.set(NHContent.density, 1f);
+
+
+
     }
 }
